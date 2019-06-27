@@ -1,0 +1,16 @@
+{{define "body"}}
+
+<div class="container">
+  <div class="row">
+    <div class="col">
+      <h1>Quiet Hacker News</h1>
+        {{range $i, $entry := .Stories}}
+        {{inc $i}}. <a href="{{$entry.Url}}" target="_blank">{{$entry.Title}}</a> ({{$entry.Domain}})<br />
+        {{end}}
+        {{end}}
+
+    </div>
+  </div>
+</div>
+
+
