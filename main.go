@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prfalken/qhn/hn"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -13,14 +14,15 @@ var (
 	port = flag.String("p", "8000", "Port number (default 8000)")
 )
 
-var stories []story
+var stories []hn.Story
 
 func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetLevel(log.DebugLevel)
-
 }
+
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
 	funcMap := template.FuncMap{
 		"inc": func(i int) int {
 			return i + 1
@@ -33,11 +35,14 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Render the template
-	err = t.ExecuteTemplate(w, "base", map[string]interface{}{"Stories": stories})
+	duration := time.Now().Sub(startTime)
+	log.Info("Took ", duration)
+	err = t.ExecuteTemplate(w, "base", map[string]interface{}{"Stories": stories, "Time": duration.String()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 }
 
 func main() {
@@ -46,7 +51,8 @@ func main() {
 	go func() {
 		for {
 			log.Info("======= Fetching new stories =========")
-			stories = fetch()
+			hnClient := hn.Client{}
+			stories = hnClient.TopStories()
 			time.Sleep(20 * time.Second)
 		}
 	}()

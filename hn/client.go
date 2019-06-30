@@ -1,4 +1,4 @@
-package main
+package hn
 
 import (
 	"encoding/json"
@@ -12,10 +12,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type Client struct{}
+
 var apiURL = "https://hacker-news.firebaseio.com/v0"
 var maxNumberOfStories = 30
 
-type story struct {
+type Story struct {
 	Id     int    `json:"id"`
 	Title  string `json:"title"`
 	Url    string `json:"url"`
@@ -23,32 +25,43 @@ type story struct {
 	Domain string
 }
 
-func fetch() []story {
-	var topStories []story
+func (hnc Client) getTopStoriesIDs(numberOfStories int) []int {
 	var topStoriesIDs []int
 	tsBody := getHTTPBody(apiURL + "/topstories.json")
 	if err := json.Unmarshal(tsBody, &topStoriesIDs); err != nil {
 		log.Error(err)
 	}
+	return topStoriesIDs[:numberOfStories]
+}
+
+func (hnc Client) getStory(id string) Story {
+	var s Story
+	storyBody := getHTTPBody(apiURL + "/item/" + id + ".json")
+	if err := json.Unmarshal(storyBody, &s); err != nil {
+		log.Error(err)
+	}
+	log.Info(s.Url)
+	domain, err := parseDomain(s.Url)
+	if err != nil {
+		log.Error("could not parse domain from URL:", s.Url)
+	}
+	s.Domain = domain
+	return s
+}
+
+func (hnc Client) TopStories() []Story {
+	var topStories []Story
+	topStoriesIDs := hnc.getTopStoriesIDs(maxNumberOfStories)
+
 	var wg sync.WaitGroup
 	wg.Add(maxNumberOfStories)
 
-	for _, id := range topStoriesIDs[:maxNumberOfStories] {
+	for _, id := range topStoriesIDs {
 		go func(i int) {
 			defer wg.Done()
 			itemID := strconv.Itoa(i)
-			var s story
-			storyBody := getHTTPBody(apiURL + "/item/" + itemID + ".json")
-			if err := json.Unmarshal(storyBody, &s); err != nil {
-				log.Error(err)
-			}
-			log.Info(s.Url)
-			domain, err := parseDomain(s.Url)
-			if err != nil {
-				log.Error("could not parse domain from URL:", s.Url)
-			}
-			s.Domain = domain
-			topStories = append(topStories, s)
+			story := hnc.getStory(itemID)
+			topStories = append(topStories, story)
 
 		}(id)
 	}
@@ -69,7 +82,7 @@ func getHTTPBody(url string) []byte {
 
 }
 
-func sortStories(stories []story) []story {
+func sortStories(stories []Story) []Story {
 	sort.Slice(stories[:], func(i, j int) bool {
 		return stories[i].Score > stories[j].Score
 	})
