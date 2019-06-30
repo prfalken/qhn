@@ -20,7 +20,6 @@ func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetLevel(log.DebugLevel)
 }
-
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	funcMap := template.FuncMap{
@@ -52,7 +51,11 @@ func main() {
 		for {
 			log.Info("======= Fetching new stories =========")
 			hnClient := hn.Client{}
-			stories = hnClient.TopStories()
+			var err error
+			stories, err = hnClient.TopStories()
+			if err != nil {
+				log.Error("Could not fetch top stories: ", err)
+			}
 			time.Sleep(20 * time.Second)
 		}
 	}()
